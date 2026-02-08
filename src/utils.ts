@@ -1,6 +1,5 @@
-import { spawn } from "child_process";
+import { exec, spawn } from "child_process";
 import path from "path";
-import fs from "fs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 
@@ -17,41 +16,18 @@ export function buildProject(id: string) {
       "output",
       id
     );
+    const child = exec(`cd ${path.join(__dirname, `output/${id}`)} && npm install && npm run build`);
 
-    // 🔴 THIS WAS MISSING
-    if (!fs.existsSync(projectPath)) {
-      reject(new Error(`Project path does not exist: ${projectPath}`));
-      return;
-    }
+        child.stdout?.on('data', function(data) {
+            console.log('stdout: ' + data);
+        });
+        child.stderr?.on('data', function(data) {
+            console.log('stderr: ' + data);
+        });
 
-    console.log("Building at:", projectPath);
+        child.on('close', function(code) {
+           return resolve();
+        });
 
-    const install = spawn("ls", ["-la"], { stdio: "inherit" });
-    // const install = spawn("npm", ["install"], {
-    //   cwd: projectPath,
-    //   stdio: "inherit",
-    //   shell: false,
-    //   detached: true
-    // });
-    // console.log(install);
-    install.on("error", reject);
-
-    install.on("close", (code) => {
-      if (code !== 0) return reject(new Error("npm install failed"));
-
-    //   const child = spawn(]);
-    //   const build = spawn("ls", ["-la"], {
-    //     cwd: projectPath,
-    //     stdio: "inherit",
-    //     detached: true
-    //   });
-
-    //   build.on("error", reject);
-
-    //   build.on("close", (code) => {
-    //     if (code !== 0) return reject(new Error("build failed"));
-    //     resolve();
-    //   });
-    });
-  });
-}
+    })
+};
