@@ -1,6 +1,14 @@
 import { createClient } from "redis";
 import { downloadS3Folder } from "./aws.js";
 import { buildProject } from "./utils.js";
+import { uploadFile } from "./aws.js";
+import { getAllFiles } from './file.js';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const subscriber = createClient();
 
@@ -16,8 +24,16 @@ async function main() {
     await downloadS3Folder(res?.element);
     
     // @ts-ignore
-    await buildProject(res.element);
-  }
+    const id = res?.element;
+  await buildProject(id as string);
+  const files = getAllFiles(path.join(__dirname,`/output/${id}/dist`));
+  files.forEach(async file => {
+  // const relativePath = path.relative(path.join(__dirname, `output/${id}`), file);
+
+  // @ts-ignore
+  await uploadFile(id, file);
+  })
+}
 }
 
 main();

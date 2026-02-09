@@ -2,10 +2,12 @@ import "dotenv/config";
 import {
   S3Client,
   ListObjectsV2Command,
-  GetObjectCommand
+  GetObjectCommand,
+  PutObjectCommand
 } from "@aws-sdk/client-s3";
 import { pipeline } from "stream/promises";
 import fs from "fs";
+import { readFile } from "fs/promises";
 import path from "path";
 const s3 = new S3Client({
   region: "auto",
@@ -20,7 +22,7 @@ const s3 = new S3Client({
 export async function downloadS3Folder(prefix: string) {
   const list = await s3.send(
     new ListObjectsV2Command({
-      Bucket: "deploy",
+      Bucket: "store",
       Prefix: prefix
     })
   );
@@ -40,7 +42,7 @@ export async function downloadS3Folder(prefix: string) {
 
       const { Body } = await s3.send(
         new GetObjectCommand({
-          Bucket: "deploy",
+          Bucket: "store",
           Key: item.Key
         })
       );
@@ -55,4 +57,20 @@ export async function downloadS3Folder(prefix: string) {
   );
 
   console.log("Download complete");
+}
+
+export async function uploadFile(
+  fileName: string,
+  localFilePath: string
+): Promise<void> {
+  const fileContent = await readFile(localFilePath);
+
+  const command = new PutObjectCommand({
+    Bucket: "build",
+    Key: fileName,
+    Body: fileContent
+  });
+
+  await s3.send(command);
+  console.log(`Uploaded ${fileName}`);
 }
