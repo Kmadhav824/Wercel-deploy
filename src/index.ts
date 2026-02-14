@@ -24,15 +24,14 @@ async function main() {
     await downloadS3Folder(res?.element);
     
     // @ts-ignore
-    const id = res?.element;
+  const id = res?.element;
   await buildProject(id as string);
   const files = getAllFiles(path.join(__dirname,`/output/${id}/dist`));
-  files.forEach(async file => {
-  // const relativePath = path.relative(path.join(__dirname, `output/${id}`), file);
+  console.log(path.join(__dirname,`/output/${id}/dist`));
 
-  // @ts-ignore
-  await uploadFile(id, file);
-  })
+  for (const file of files) {
+    await uploadFile(`${id}/${path.basename(file)}`, file);
+  }
 }
 }
 

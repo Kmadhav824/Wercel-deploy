@@ -16,7 +16,7 @@ export function buildProject(id: string) {
       "output",
       id
     );
-    const child = exec(`cd ${path.join(__dirname, `output/${id}`)} && npm install && npm run build`);
+    const child = exec(`cd ${projectPath} && ${npmCmd} install && ${npmCmd} run build`);
 
         child.stdout?.on('data', function(data) {
             console.log('stdout: ' + data);
