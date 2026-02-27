@@ -1,38 +1,49 @@
+import "dotenv/config";
 import { createClient } from "redis";
 import { downloadS3Folder } from "./aws.js";
 import { buildProject } from "./utils.js";
 import { uploadFile } from "./aws.js";
 import { getAllFiles } from './file.js';
 import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+// Files are downloaded to: <cwd>/dist/output/<id>/...
+// The built output will be at: <cwd>/dist/output/<id>/dist/
+const OUTPUT_BASE = path.join(process.cwd(), "dist", "output");
 
 const subscriber = createClient();
-
 await subscriber.connect();
+
+const publisher = createClient();
+await publisher.connect();
 
 async function main() {
   while (true) {
     const res = await subscriber.brPop("build-queue", 0);
 
-    // res is { key: 'build-queue', element: '...' }
+    // res is { key: 'build-queue', element: '<id>' }
     console.log(res);
-    // @ts-ignore
-    await downloadS3Folder(res?.element);
-    
-    // @ts-ignore
-  const id = res?.element;
-  await buildProject(id as string);
-  const files = getAllFiles(path.join(__dirname,`/output/${id}/dist`));
-  console.log(path.join(__dirname,`/output/${id}/dist`));
+    const id = res?.element as string;
 
-  for (const file of files) {
-    await uploadFile(`${id}/${path.basename(file)}`, file);
+    // 1. Download source from S3 (lands in <cwd>/dist/output/<id>/)
+    await downloadS3Folder(id);
+
+    // 2. Build the project (npm install && npm run build inside the folder)
+    await buildProject(id);
+
+    // 3. Collect built files from the dist/ subfolder
+    const distPath = path.join(OUTPUT_BASE, id, "dist");
+    console.log("Uploading from:", distPath);
+    const files = getAllFiles(distPath);
+
+    // 4. Upload each file preserving its relative path under dist/
+    for (const file of files) {
+      const relativePath = path.relative(distPath, file);
+      await uploadFile(`${id}/${relativePath}`, file);
+    }
+
+    publisher.hSet("status", id, "deployed");
+    console.log(`Deployment complete for ${id}`);
   }
-}
 }
 
 main();
